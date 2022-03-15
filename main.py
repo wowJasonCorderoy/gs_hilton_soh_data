@@ -1,13 +1,15 @@
-
+from google.cloud import storage
+import pandas as pd
+import re
+import json
+import re
+from google.cloud import bigquery
+from datetime import datetime,timezone  
+import os
+    
 #### Declare constants
 N_COLUMNS = 7
 PROJECT_ID = 'gcp-wow-pvc-grnstck-prod'
-
-project_creds_file_map = {
-    'gcp-wow-pvc-grnstck-prod':r"C:\dev\greenstock\optimiser_files\key_prod.json",
-    'gcp-wow-pvc-grnstck-dev':r"C:\dev\greenstock\optimiser_files\key_dev.json",
-}
-CREDS_FILE_LOC = project_creds_file_map.get(PROJECT_ID)
 
 now_utc = datetime.now(timezone.utc) # timezone aware object, unlike datetime.utcnow().
     
@@ -22,7 +24,6 @@ def pretty_print_event(event: dict = None) -> None:
     print(event)
     return
 
-
 def pretty_print_context(context=None) -> None:
     """
     pretty print context dict.
@@ -34,10 +35,8 @@ def pretty_print_context(context=None) -> None:
     print(context)
     return
 
-
 def get_file_name(event: dict = None) -> str:
     return event["name"]
-
 
 def get_bucket_name(event: dict = None) -> str:
     return event["bucket"]
@@ -65,24 +64,40 @@ def is_correctFileType(fileName: str = None, regex: str = r".*htm[l]?$") -> bool
 def gen_full_bucket_path(bucketName: str = None, fileName: str = None) -> str:
     return "gs://" + bucketName + "/" + fileName
 
+def copy_blob(
+    bucket_name, blob_name, destination_bucket_name, destination_blob_name
+):
+    """Copies a blob from one bucket to another with a new name."""
+    # bucket_name = "your-bucket-name"
+    # blob_name = "your-object-name"
+    # destination_bucket_name = "destination-bucket-name"
+    # destination_blob_name = "destination-object-name"
+
+    storage_client = storage.Client()
+
+    source_bucket = storage_client.bucket(bucket_name)
+    source_blob = source_bucket.blob(blob_name)
+    destination_bucket = storage_client.bucket(destination_bucket_name)
+
+    blob_copy = source_bucket.copy_blob(
+        source_blob, destination_bucket, destination_blob_name
+    )
+
+    print(
+        "Blob {} in bucket {} copied to blob {} in bucket {}.".format(
+            source_blob.name,
+            source_bucket.name,
+            blob_copy.name,
+            destination_bucket.name,
+        )
+    )
+
 def run(event, context):
     """Triggered by a change to a Cloud Storage bucket.
     Args:
          event (dict): Event payload.
          context (google.cloud.functions.Context): Metadata for the event.
     """
-    from google.cloud import storage
-    import pandas as pd
-    from sklearn.ensemble import IsolationForest
-    import re
-    import json
-    
-    
-    # # for local dev...
-    # if run_local:
-    #     event = c.EVENT
-    #     context = c.CONTEXT       
-
     pretty_print_event(event)
     pretty_print_context(context)
 
@@ -174,11 +189,16 @@ def run(event, context):
     # save to cloud storage
     saveFileName = now_utc.strftime("%Y%m%d_%H:%M:%S")+"_"+fileName
     saveLocation = "gs://" + save_to_bucketname + "/" + saveFileName
-    bq_df.to_csv(saveLocation, index=False)
+    bq_df.to_csv(saveLocation+'.csv', index=False)
+    bq_df.to_pickle(saveLocation+'.pk')
+
+    #clean_saveFileName = re.sub(r'[^0-9a-zA-Z.]','_', saveFileName) #copy_blob has issues with spaces and special chars so replace them
+    #copy_blob(bucket_name=bucketName, blob_name=fileName, destination_bucket_name=save_to_bucketname, destination_blob_name=clean_saveFileName)
+    copy_blob(bucket_name=bucketName, blob_name=fileName, destination_bucket_name=save_to_bucketname, destination_blob_name=saveFileName)
 
     # save to BQ
     client = bigquery.Client(project=PROJECT_ID)
-    table_id = 'sandpit.hilton_soh'
+    table_id = 'masterdata_view.hilton_soh_daily'
 
     job_config = bigquery.LoadJobConfig(write_disposition="WRITE_APPEND")
 

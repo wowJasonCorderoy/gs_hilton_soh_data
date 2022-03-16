@@ -136,7 +136,7 @@ def run(event, context):
     textfile.close()
     matches = re.findall(re_per_block, filetext)
     
-    file_contents_md5 = hashlib.md5(open(fileName,'rb').read()).hexdigest()
+    file_contents_md5 = hashlib.md5(open(params_save_dest,'rb').read()).hexdigest()
 
     # 1st element is the report heading
     # next are table headings

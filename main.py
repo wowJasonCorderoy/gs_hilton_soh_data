@@ -6,6 +6,7 @@ import re
 from google.cloud import bigquery
 from datetime import datetime,timezone  
 import os
+import hashlib
     
 #### Declare constants
 N_COLUMNS = 7
@@ -134,6 +135,8 @@ def run(event, context):
     filetext = textfile.read()
     textfile.close()
     matches = re.findall(re_per_block, filetext)
+    
+    file_contents_md5 = hashlib.md5(open(fileName,'rb').read()).hexdigest()
 
     # 1st element is the report heading
     # next are table headings
@@ -149,7 +152,11 @@ def run(event, context):
     matches_clean = [re.sub(r'\s{2,}', " ", x).strip() for x in matches_clean]
 
     # make a list of lists then dataframe
-    report_name = matches_clean.pop(0)
+    # sometimes 1st column name is 2nd item in list (in which case report title is first) other times it's 1st.
+    if matches_clean[0] != 'Material':
+        report_name = matches_clean.pop(0)
+    else:
+        report_name = 'Stocklist with remainging SLED and days from pack'
     lol = list(zip(*[iter(matches_clean)]*N_COLUMNS))
     # remove duplicate headers
     df_headings = lol.pop(0)
@@ -163,7 +170,7 @@ def run(event, context):
         'WoW material no.': lambda x: x.astype('str'),
         'Material description': lambda x: x.astype('str'),
         'Batch': lambda x: x.astype('str'),
-        'Unrestricted': lambda x: x.astype('int64'),
+        'Unrestricted': lambda x: [int(re.sub(r'[^0-9]', "", str(s))) for s in x],
         'BUn': lambda x: x.astype('str'),
         'Manuf. Dte' : lambda x: pd.to_datetime(x, dayfirst=True),
     }
@@ -173,7 +180,9 @@ def run(event, context):
 
     # add an as at column
     df['upload_utc_dt'] = now_utc
-        
+    df['filename'] = fileName
+    df['file_contents_md5'] = file_contents_md5
+    
     # clean headings for BQ save
     colname_map = {
         'Material': 'material',

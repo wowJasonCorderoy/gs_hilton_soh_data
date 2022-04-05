@@ -122,8 +122,12 @@ def load_site_soh(params_save_dest: str):
         'PRODUCTID': 'str', 
         'STOCKINGPOINTID': 'str',
             }
-    parse_dates = ['DATE', 'MANUFACTUREDDATE']        
-    df = pd.read_excel(params_save_dest, names=headers, dtype=dtypes, parse_dates=parse_dates, usecols="A:F")
+    parse_dates = ['DATE', 'MANUFACTUREDDATE']
+    try:
+        df = pd.read_excel(params_save_dest, names=headers, dtype=dtypes, parse_dates=parse_dates, usecols="A:F", sheet_name=['PORK','LAMB','BEEF'])
+        df = pd.concat(df)
+    except:
+        df = pd.read_excel(params_save_dest, names=headers, dtype=dtypes, parse_dates=parse_dates, usecols="A:F", sheet_name='Sheet1')
     return df
 
 def load_offsite_soh(params_save_dest: str):
@@ -144,14 +148,20 @@ def load_offsite_soh(params_save_dest: str):
                 'OUN2': 'str',
                 'QTY_DELIVERED': np.float64,
             }
-    parse_dates = ['DOC_DATE','DELIV_DATE']        
-    df = pd.read_excel(params_save_dest, names=headers, dtype=dtypes, parse_dates=parse_dates, usecols="A:P")
+    parse_dates = ['DOC_DATE','DELIV_DATE']
+    try:
+        df = pd.read_excel(params_save_dest, names=headers, dtype=dtypes, parse_dates=parse_dates, usecols="A:P", sheet_name=['PORK','LAMB','BEEF'])
+        df = pd.concat(df)
+    except:
+        df = pd.read_excel(params_save_dest, names=headers, dtype=dtypes, parse_dates=parse_dates, usecols="A:P", sheet_name='Sheet1')
     return df
 
 def get_function_2_load_data(filename: str):
     if 'offsite' in filename.lower():
         return load_offsite_soh
-    if "po's" in filename.lower():
+    elif 'offiste' in filename.lower():
+        return load_offsite_soh
+    elif "po's" in filename.lower():
         return load_offsite_soh
     else:
         return load_site_soh

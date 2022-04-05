@@ -10,7 +10,6 @@ import hashlib
 import numpy as np
     
 #### Declare constants
-N_COLUMNS = 7
 PROJECT_ID = 'gcp-wow-pvc-grnstck-prod'
 
 now_utc = datetime.now(timezone.utc) # timezone aware object, unlike datetime.utcnow().
@@ -97,11 +96,11 @@ def copy_blob(
 def infer_site(filename: str):
     if 'trug' in filename.lower():
         return 'Truganina'
-    if 'hw' in filename.lower():
+    elif 'hw' in filename.lower():
         return 'Heathwood'
-    if 'bun' in filename.lower():
+    elif 'bun' in filename.lower():
         return 'Bunbury'
-    if 'offsite storage' in filename.lower(): # e.g. filename 'Offsite Storage 28032022' is actually Heathwood
+    elif 'offsite storage' in filename.lower(): # e.g. filename 'Offsite Storage 28032022' is actually Heathwood
         return 'heathwood'
     else:
         return 'Other'
@@ -109,7 +108,9 @@ def infer_site(filename: str):
 def infer_table_id(filename: str):
     if 'offsite' in filename.lower():
         return 'hilton.hilton_offsitestorage'
-    if "po's" in filename.lower():
+    elif 'offiste' in filename.lower():
+        return 'hilton.hilton_offsitestorage'
+    elif "po's" in filename.lower():
         return 'hilton.hilton_offsitestorage'
     else:
         return 'hilton.hilton_inventory'
